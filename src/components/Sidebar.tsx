@@ -19,12 +19,14 @@ interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   ordersCount: number;
+  unreadChatAlerts?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   ordersCount,
+  unreadChatAlerts = 0,
 }) => {
   const navItems = [
     {
@@ -43,8 +45,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'chat' as ActiveTab,
       label: 'נועה AI — צ׳אט וסדרנית',
       icon: MessageSquare,
-      badge: 'Live',
+      badge: unreadChatAlerts > 0 ? `+${unreadChatAlerts} סונכרן` : 'Live',
       isAi: true,
+      hasAlert: unreadChatAlerts > 0,
     },
     {
       id: 'clients' as ActiveTab,
@@ -137,9 +140,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {item.badge && (
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition ${
                     isActive
                       ? 'bg-white/20 text-white'
+                      : (item as any).hasAlert
+                      ? 'bg-emerald-500 text-white animate-pulse shadow-sm shadow-emerald-500/30'
                       : item.isAi
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-slate-200 text-slate-700'

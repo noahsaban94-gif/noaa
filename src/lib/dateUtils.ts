@@ -86,6 +86,21 @@ export function formatHebrewFullDate(dateStr: string): string {
 }
 
 /**
+ * המרת תאריך לפורמט עברי קצר (למשל: יום א׳, 13/09)
+ */
+export function formatHebrewShortDate(dateStr: string): string {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const dayName = HEBREW_DAYS_FULL[date.getDay()] || '';
+    const dayShort = dayName.replace('יום ', '');
+    return `${dayShort}׳ ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
  * רמת עומס הזמנות לתאריך
  */
 export type WorkloadLevel = 'empty' | 'low' | 'medium' | 'high';
@@ -220,4 +235,39 @@ export function generateCalendarDays(year: number, monthIndex: number): Calendar
   }
 
   return days;
+}
+
+/**
+ * יצירת 7 ימי השבוע סביב תאריך נתון (יום ראשון עד שבת)
+ */
+export function generateWeekDays(referenceDateStr: string): CalendarDay[] {
+  const todayStr = '2026-09-13';
+  const [y, m, d] = referenceDateStr.split('-').map(Number);
+  const refDate = new Date(y, m - 1, d);
+  const dayOfWeek = refDate.getDay(); // 0 = Sunday
+
+  // מציאת יום ראשון של השבוע
+  const sunday = new Date(refDate);
+  sunday.setDate(refDate.getDate() - dayOfWeek);
+
+  const weekDays: CalendarDay[] = [];
+  for (let i = 0; i < 7; i++) {
+    const current = new Date(sunday);
+    current.setDate(sunday.getDate() + i);
+
+    const year = current.getFullYear();
+    const month = current.getMonth() + 1;
+    const day = current.getDate();
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    weekDays.push({
+      dateString: dateStr,
+      dayNumber: day,
+      isCurrentMonth: current.getMonth() === refDate.getMonth(),
+      isToday: dateStr === todayStr,
+      dayOfWeek: current.getDay(),
+    });
+  }
+
+  return weekDays;
 }

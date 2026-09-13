@@ -213,6 +213,23 @@ let ordersStore: ServerOrder[] = [
     driveFolderUrl: 'https://drive.google.com/drive/folders/1CARwoXMPEODCVCAWHZZEK_a1jAi-kSIY',
   },
   {
+    id: 'ord-6215462',
+    roundAndTime: 'סבב 3 (12:30)',
+    orderNumber: '6215462',
+    clientName: 'דורון קבלנות ופיתוח',
+    warehouse: '🏭 מחסן 4 (החרש)',
+    destinationAddress: 'הבנים 14, כפר סבא',
+    city: 'כפר סבא',
+    driver: 'חכמת (מרצדס מנוף)',
+    productsSummary: '3 בלות חול ים, 2 בלות סומסום, 20 שקי טיט מוכן',
+    depositsSummary: 'פטור',
+    wazeUrl: 'https://www.waze.com/ul?q=%D7%94%D7%91%D7%A8%D7%99%D7%9D%2014%2C%20%D7%9B%D7%A4%D7%A8%20%D7%A1%D7%91%D7%90&navigate=yes',
+    status: 'בסידור עבודה',
+    date: '2026-09-13',
+    createdAt: '2026-09-13 10:15',
+    notes: '⚠️ דרוש אימות חיוב: כולל 5 בלות אך סומן פטור מפיקדון',
+  },
+  {
     id: 'ord-6215488',
     roundAndTime: 'סבב 1 (08:00)',
     orderNumber: '6215488',
@@ -654,6 +671,60 @@ app.get('/api/export/morning-report', (req: Request, res: Response) => {
     ordersCount: ordersStore.length,
   });
 });
+
+// ==========================================
+// 3.1. Bulk Driver Routes & Short Link API
+// ==========================================
+const routesStore: Record<string, any> = {};
+
+app.post('/api/routes', (req: Request, res: Response) => {
+  try {
+    const route = req.body;
+    if (!route || !route.stops || !Array.isArray(route.stops)) {
+      res.status(400).json({ error: 'נתוני מסלול חסרים' });
+      return;
+    }
+    const code = (route.code || Math.random().toString(36).substring(2, 8)).toUpperCase();
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const shortUrl = `${protocol}://${host}/r/${code}`;
+
+    const savedRoute = {
+      ...route,
+      code,
+      shortUrl: route.shortUrl || shortUrl,
+      createdAt: route.createdAt || new Date().toISOString(),
+    };
+
+    routesStore[code] = savedRoute;
+
+    res.status(201).json({
+      success: true,
+      code,
+      shortUrl: savedRoute.shortUrl,
+      route: savedRoute,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'שגיאה בשמירת מסלול' });
+  }
+});
+
+app.get('/api/routes/:code', (req: Request, res: Response) => {
+  const { code } = req.params;
+  const route = routesStore[code.toUpperCase()] || routesStore[code];
+  if (!route) {
+    res.status(404).json({ error: 'מסלול לא נמצא' });
+    return;
+  }
+  res.json({ success: true, route });
+});
+
+// Redirect short link /r/:code to the SPA with route query parameter
+app.get('/r/:code', (req: Request, res: Response) => {
+  const { code } = req.params;
+  res.redirect(`/?route=${encodeURIComponent(code)}`);
+});
+
 
 // ==========================================
 // 4. Vite Middleware & Static Serving

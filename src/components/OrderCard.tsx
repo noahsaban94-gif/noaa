@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  AlertOctagon,
   MoreVertical,
   Trash2,
   Edit,
@@ -17,12 +18,16 @@ import {
   Phone
 } from 'lucide-react';
 import { Order, OrderStatus } from '../types';
+import { checkBelaDepositAlert } from '../utils/orderValidation';
 
 interface OrderCardProps {
   order: Order;
   onUpdateStatus: (id: string, newStatus: OrderStatus) => void;
   onDeleteOrder: (id: string) => void;
   onEditOrder?: (order: Order) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+  onOpenClientPortfolio?: (clientName: string) => void;
 }
 
 const STATUS_CONFIG: Record<
@@ -78,6 +83,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onUpdateStatus,
   onDeleteOrder,
   onEditOrder,
+  isSelected = false,
+  onToggleSelect,
+  onOpenClientPortfolio,
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const statusInfo = STATUS_CONFIG[order.status] || STATUS_CONFIG['בסידור עבודה'];
@@ -85,6 +93,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
   const isCrane = order.driver.includes('חכמת') || order.driver.includes('מנוף');
   const isExempt = order.depositsSummary === 'פטור';
+  const belaAlert = checkBelaDepositAlert(order);
 
   // Driver phone lookup
   const driverPhone = isCrane ? '0520000005' : '0520000006';
@@ -105,11 +114,31 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   };
 
   return (
-    <div className="win-card win-card-hover rounded-2xl p-4.5 flex flex-col justify-between transition relative text-right">
-      {/* Top Bar: Round Badge + Order Number + Status Tag */}
+    <div
+      className={`win-card win-card-hover rounded-2xl p-4.5 flex flex-col justify-between transition relative text-right ${
+        isSelected
+          ? 'ring-2 ring-blue-500 border-blue-400 bg-blue-50/20 shadow-md shadow-blue-500/10'
+          : ''
+      }`}
+    >
+      {/* Top Bar: Selection Checkbox + Round Badge + Order Number + Status Tag */}
       <div>
         <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
+            {onToggleSelect && (
+              <label
+                className="cursor-pointer flex items-center justify-center p-0.5"
+                title={isSelected ? 'בטל בחירה למסלול ניווט מרוכז' : 'בחר הזמנה למסלול ניווט מרוכז (Bulk Navigate)'}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(order.id)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                />
+              </label>
+            )}
             <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-bold border border-slate-200/80">
               {order.roundAndTime}
             </span>
@@ -150,16 +179,80 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           </div>
         </div>
 
+        {/* Bela Deposit Alert Badge (באג אדום למניעת טעויות חיוב / סף משטח) */}
+        {belaAlert.hasAlert && (
+          <div
+            className="mt-2.5 p-2.5 rounded-xl bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-300 text-right shadow-2xs transition animate-fade-in"
+            title={belaAlert.reason}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                <span className="p-1 rounded-lg bg-red-600 text-white shadow-xs shrink-0 mt-0.5 animate-pulse">
+                  <AlertOctagon className="w-3.5 h-3.5" />
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-black text-red-900">
+                      התראת חיוב: בלות ללא פיקדון!
+                    </span>
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-red-600 text-white shadow-2xs">
+                      {belaAlert.isExempt ? 'מסומן פטור' : belaAlert.isEmpty ? 'שדה ריק' : 'חסר מק״ט 60002'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-red-700 mt-0.5 leading-snug font-medium">
+                    ההזמנה כוללת בלות אך הפיקדון לא חויב. יש לוודא אישור חריג או עמידה בסף מינימום משטח למניעת טעויות חיוב.
+                  </p>
+                </div>
+              </div>
+
+              {onEditOrder && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditOrder(order);
+                  }}
+                  className="shrink-0 px-2 py-1 rounded-lg bg-white hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-bold shadow-2xs transition active:scale-95"
+                  title="פתח לבדיקת חיוב ועריכת ההזמנה"
+                >
+                  בדיקת חיוב
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Client & Destination */}
         <div className="mt-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-extrabold text-slate-900 truncate">
-              {order.clientName}
-            </h3>
+            <div className="flex items-center gap-1.5 truncate">
+              <h3
+                onClick={() => onOpenClientPortfolio?.(order.clientName)}
+                className={`text-sm font-extrabold text-slate-900 truncate ${
+                  onOpenClientPortfolio ? 'cursor-pointer hover:text-blue-600 hover:underline transition' : ''
+                }`}
+                title={onOpenClientPortfolio ? `לחץ לפתיחת תיק לקוח CRM עבור ${order.clientName}` : undefined}
+              >
+                {order.clientName}
+              </h3>
+              {onOpenClientPortfolio && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenClientPortfolio(order.clientName);
+                  }}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold hover:bg-blue-100 transition shrink-0"
+                  title="פתיחת תיק לקוח והצלבת הזמנות"
+                >
+                  תיק לקוח
+                </button>
+              )}
+            </div>
             {order.clientPhone && (
               <a
                 href={`tel:${order.clientPhone}`}
-                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold"
+                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold shrink-0"
                 title="חייג ללקוח"
               >
                 <Phone className="w-3 h-3" />
@@ -202,13 +295,28 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         {/* Deposits Badge */}
         <div className="mt-2.5 flex items-center justify-between text-xs">
           <span className="text-slate-500 text-[11px] font-semibold">פקדונות:</span>
-          <span
-            className={`px-2 py-0.5 rounded-md font-bold text-xs ${
-              isExempt ? 'bg-slate-100 text-slate-600' : 'bg-teal-50 text-teal-800 border border-teal-200'
-            }`}
-          >
-            {order.depositsSummary}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {belaAlert.hasAlert && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-600 text-white font-black text-[10.5px] shadow-2xs animate-pulse"
+                title={belaAlert.reason}
+              >
+                <AlertTriangle className="w-3 h-3 text-white shrink-0" />
+                <span>חסר פיקדון בלות!</span>
+              </span>
+            )}
+            <span
+              className={`px-2 py-0.5 rounded-md font-bold text-xs ${
+                belaAlert.hasAlert
+                  ? 'bg-red-100 text-red-800 border border-red-300'
+                  : isExempt
+                  ? 'bg-slate-100 text-slate-600'
+                  : 'bg-teal-50 text-teal-800 border border-teal-200'
+              }`}
+            >
+              {order.depositsSummary || 'ריק'}
+            </span>
+          </div>
         </div>
 
         {order.notes && (

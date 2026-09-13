@@ -12,17 +12,25 @@ interface MobileNavProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   ordersCount: number;
+  unreadChatAlerts?: number;
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({
   activeTab,
   setActiveTab,
   ordersCount,
+  unreadChatAlerts = 0,
 }) => {
   const items = [
     { id: 'dashboard' as ActiveTab, label: 'לוח בקרה', icon: LayoutDashboard },
     { id: 'schedule' as ActiveTab, label: 'סידור יומי', icon: CalendarDays, badge: ordersCount },
-    { id: 'chat' as ActiveTab, label: 'נועה AI', icon: MessageSquare, isChat: true },
+    {
+      id: 'chat' as ActiveTab,
+      label: 'נועה AI',
+      icon: MessageSquare,
+      isChat: true,
+      alertBadge: unreadChatAlerts > 0 ? unreadChatAlerts : undefined,
+    },
     { id: 'clients' as ActiveTab, label: 'קבלנים', icon: Users },
     { id: 'deposits' as ActiveTab, label: 'פקדונות', icon: Package },
   ];
@@ -42,14 +50,19 @@ export const MobileNav: React.FC<MobileNavProps> = ({
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            {item.isChat && (
-              <span className="absolute -top-1 right-2 w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+            {item.isChat && item.alertBadge && (
+              <span className="absolute -top-1 right-2 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
             )}
             <div className="relative">
               <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600 stroke-[2.5]' : 'text-slate-500'}`} />
               {item.badge !== undefined && item.badge > 0 && (
                 <span className="absolute -top-1.5 -right-2 bg-blue-600 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
                   {item.badge}
+                </span>
+              )}
+              {item.alertBadge && (
+                <span className="absolute -top-1.5 -left-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-xs">
+                  {item.alertBadge}
                 </span>
               )}
             </div>

@@ -20,10 +20,19 @@ import {
   Copy,
   Check,
   MapPin,
-  ExternalLink
+  ExternalLink,
+  Route,
+  Navigation,
+  CheckSquare,
+  Square,
+  Smartphone,
 } from 'lucide-react';
 import { Order, OrderStatus } from '../types';
 import { OrderCard } from './OrderCard';
+import { BulkRouteModal } from './BulkRouteModal';
+import { DriverRouteView } from './DriverRouteView';
+import { CalendarView } from './CalendarView';
+import { BulkRouteData } from '../lib/routeOptimizer';
 import {
   extractOrderDate,
   formatHebrewFullDate,
@@ -68,6 +77,12 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
 
   // WhatsApp broadcast copy state
   const [copiedBroadcast, setCopiedBroadcast] = useState(false);
+
+  // Bulk Navigation & Route Optimization states
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isBulkRouteModalOpen, setIsBulkRouteModalOpen] = useState(false);
+  const [bulkModalDriver, setBulkModalDriver] = useState<string>('חכמת (מרצדס מנוף)');
+  const [activeCompanionRoute, setActiveCompanionRoute] = useState<BulkRouteData | null>(null);
 
   // Filter all orders based on query and global filters
   const filteredOrders = useMemo(() => {
@@ -206,6 +221,42 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
     setTimeout(() => setCopiedBroadcast(false), 2500);
   };
 
+  // Selection handlers for Bulk Navigate
+  const handleToggleSelectOrder = (id: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllForDriver = (driverKey: 'חכמת' | 'עלי') => {
+    const ids = selectedDateOrders
+      .filter((o) => o.driver.includes(driverKey))
+      .map((o) => o.id);
+    setSelectedOrderIds((prev) => {
+      const set = new Set([...prev, ...ids]);
+      return Array.from(set);
+    });
+    setBulkModalDriver(driverKey === 'חכמת' ? 'חכמת (מרצדס מנוף)' : 'עלי (משאית איסוזו)');
+  };
+
+  const handleClearSelection = () => {
+    setSelectedOrderIds([]);
+  };
+
+  const handleOpenBulkNavigate = (overrideDriver?: string) => {
+    if (overrideDriver) {
+      setBulkModalDriver(overrideDriver);
+    } else {
+      const firstSelected = orders.find((o) => selectedOrderIds.includes(o.id));
+      if (firstSelected) {
+        setBulkModalDriver(firstSelected.driver);
+      } else if (dayDriverFilter !== 'all') {
+        setBulkModalDriver(dayDriverFilter === 'חכמת' ? 'חכמת (מרצדס מנוף)' : 'עלי (משאית איסוזו)');
+      }
+    }
+    setIsBulkRouteModalOpen(true);
+  };
+
   return (
     <div className="space-y-4" dir="rtl">
       {/* Top Header Card */}
@@ -256,6 +307,15 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
               <span>רשימה מלאה ({filteredOrders.length})</span>
             </button>
           </div>
+
+          <button
+            onClick={() => handleOpenBulkNavigate()}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold border border-sky-200 transition active:scale-95 shadow-xs"
+            title="איחוד הזמנות לנהג, אופטימיזציית מסלול רב-תחנות והפקת לינק מקוצר ל-Waze"
+          >
+            <Route className="w-4 h-4 text-sky-600" />
+            <span>ניווט מרוכז (Bulk Navigate) 🗺️</span>
+          </button>
 
           <button
             onClick={onOpenMorningReport}
@@ -638,6 +698,90 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
               </div>
             </div>
 
+            {/* Multi-selection Bar & Bulk Navigate Quick Controls */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-50 border border-slate-200/90 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-slate-600 flex items-center gap-1">
+                  <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
+                  <span>בחירה מהירה לניווט:</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectAllForDriver('חכמת')}
+                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold transition flex items-center gap-1"
+                >
+                  <span>בחר הכל לחכמת 🏗️</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectAllForDriver('עלי')}
+                  className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 font-bold transition flex items-center gap-1"
+                >
+                  <span>בחר הכל לעלי 🚚</span>
+                </button>
+                {selectedOrderIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    className="px-2 py-1 rounded-lg text-slate-400 hover:text-slate-700 font-medium transition"
+                  >
+                    נקה בחירה ({selectedOrderIds.length})
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenBulkNavigate()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-black shadow-xs transition active:scale-95"
+              >
+                <Route className="w-3.5 h-3.5 text-amber-300" />
+                <span>
+                  {selectedOrderIds.length > 0
+                    ? `ניווט מרוכז (${selectedOrderIds.length} נבחרו) 🗺️`
+                    : 'ניווט מרוכז (Bulk Navigate) 🗺️'}
+                </span>
+              </button>
+            </div>
+
+            {/* Sticky Prominent Selection Banner when 1+ orders selected */}
+            {selectedOrderIds.length > 0 && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700 text-white shadow-lg flex items-center justify-between gap-3 animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center font-black flex-shrink-0">
+                    {selectedOrderIds.length}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black">
+                      נבחרו {selectedOrderIds.length} הזמנות עבור מסלול ניווט מרוכז ב-Waze
+                    </h4>
+                    <p className="text-[11px] text-blue-100">
+                      איחוד אוטומטי של התחנות ברצף אופטימלי והפקת לינק מקוצר וכרטיס ניווט לנהג
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleClearSelection}
+                    className="px-2.5 py-1.5 rounded-xl text-blue-200 hover:text-white text-xs font-bold transition"
+                  >
+                    בטל בחירה
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBulkNavigate()}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-blue-800 hover:bg-blue-50 font-black text-xs shadow-md transition active:scale-95"
+                  >
+                    <Navigation className="w-3.5 h-3.5 text-blue-600" />
+                    <span>פתח מחולל מסלול ולינק מקוצר 🚀</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Orders Cards Grid for Selected Date */}
             {selectedDateOrders.length === 0 ? (
               <div className="py-12 px-4 rounded-2xl bg-slate-50/70 border border-dashed border-slate-200 text-center space-y-3">
@@ -669,6 +813,8 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                     onUpdateStatus={onUpdateStatus}
                     onDeleteOrder={onDeleteOrder}
                     onEditOrder={onEditOrder}
+                    isSelected={selectedOrderIds.includes(order.id)}
+                    onToggleSelect={handleToggleSelectOrder}
                   />
                 ))}
               </div>
@@ -713,10 +859,34 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                   onUpdateStatus={onUpdateStatus}
                   onDeleteOrder={onDeleteOrder}
                   onEditOrder={onEditOrder}
+                  isSelected={selectedOrderIds.includes(order.id)}
+                  onToggleSelect={handleToggleSelectOrder}
                 />
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Bulk Route Optimization Modal */}
+      <BulkRouteModal
+        isOpen={isBulkRouteModalOpen}
+        onClose={() => setIsBulkRouteModalOpen(false)}
+        selectedOrders={orders.filter((o) => selectedOrderIds.includes(o.id))}
+        allDayOrders={ordersByDate[selectedDate] || []}
+        currentDate={selectedDate}
+        defaultDriver={bulkModalDriver}
+        onOpenDriverCompanion={(route) => setActiveCompanionRoute(route)}
+      />
+
+      {/* Interactive Mobile Driver Route Companion Mode */}
+      {activeCompanionRoute && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950">
+          <DriverRouteView
+            routeData={activeCompanionRoute}
+            onBackToMain={() => setActiveCompanionRoute(null)}
+            onUpdateOrderStatus={onUpdateStatus}
+          />
         </div>
       )}
     </div>

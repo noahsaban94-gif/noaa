@@ -9,11 +9,14 @@ import {
   MapPin,
   Calendar,
   Phone,
-  CheckCircle2
+  CheckCircle2,
+  AlertOctagon,
+  AlertTriangle
 } from 'lucide-react';
 import { Order, Client } from '../types';
 import { INITIAL_CLIENTS } from '../data/mockAndInitialData';
 import { normalizeOrderText } from '../lib/normalizer';
+import { checkBelaDepositAlert } from '../utils/orderValidation';
 
 interface NewOrderModalProps {
   isOpen: boolean;
@@ -49,6 +52,12 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
   }, [initialDate]);
 
   if (!isOpen) return null;
+
+  const liveBelaAlert = checkBelaDepositAlert({
+    productsSummary: productsSummary || rawOrderText,
+    depositsSummary,
+    notes,
+  });
 
   // Run auto normalizer on raw text
   const handleNormalize = () => {
@@ -296,14 +305,45 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
 
           {/* Deposits Summary */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">פקדונות לתעודה:</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-bold text-slate-700">פקדונות לתעודה:</label>
+              {liveBelaAlert.hasAlert && (
+                <span className="text-[10.5px] font-black text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1 animate-pulse">
+                  <AlertOctagon className="w-3 h-3" />
+                  התראת חיוב: בלות ללא פיקדון!
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={depositsSummary}
               onChange={(e) => setDepositsSummary(e.target.value)}
               placeholder="למשל: 5 בלות (60002), 1 משטח סבן (60060) או פטור"
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+              className={`w-full bg-white border rounded-xl px-3 py-2 text-xs transition ${
+                liveBelaAlert.hasAlert
+                  ? 'border-red-400 focus:ring-2 focus:ring-red-400/30'
+                  : 'border-slate-200'
+              }`}
             />
+            {liveBelaAlert.hasAlert && (
+              <div className="mt-1.5 p-2 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <span className="text-[11px] font-medium leading-snug">
+                    ההזמנה כוללת בלות אך שדה הפיקדונות {liveBelaAlert.isExempt ? 'מסומן כפטור' : 'ריק'}. מומלץ לוודא חיוב מק״ט 60002.
+                  </span>
+                </div>
+                {liveBelaAlert.suggestedDeposit && (
+                  <button
+                    type="button"
+                    onClick={() => setDepositsSummary(liveBelaAlert.suggestedDeposit!)}
+                    className="shrink-0 px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[10.5px] transition shadow-2xs"
+                  >
+                    הזן {liveBelaAlert.suggestedDeposit}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Notes */}

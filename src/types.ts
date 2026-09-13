@@ -75,6 +75,29 @@ export interface QuickAction {
   payload?: any;
 }
 
+export interface SheetSyncAlertData {
+  sheetId: string;
+  tabName?: string;
+  syncedOrdersCount: number;
+  syncedAt: string;
+  source?: 'navbar' | 'chat' | 'settings' | 'auto';
+  driversSummary?: {
+    hikmatCount: number;
+    aliCount: number;
+  };
+  warehousesSummary?: {
+    hareshCount: number;
+    talmidCount: number;
+  };
+  statusBreakdown?: {
+    delivered: number;
+    readyForLoading: number;
+    inSchedule: number;
+    urgentOrDelayed: number;
+  };
+  syncDurationMs?: number;
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'noa' | 'system';
@@ -83,6 +106,8 @@ export interface ChatMessage {
   quickActions?: QuickAction[];
   orderData?: Partial<Order>;
   hasAudio?: boolean;
+  isSyncAlert?: boolean;
+  syncData?: SheetSyncAlertData;
 }
 
 export interface ClientProfile {
