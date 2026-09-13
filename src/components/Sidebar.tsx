@@ -31,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     {
       id: 'dashboard' as ActiveTab,
-      label: 'לוח בקרה',
+      label: 'סידור היום',
       icon: LayoutDashboard,
       badge: null,
     },

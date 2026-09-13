@@ -15,7 +15,9 @@ import {
   Trash2,
   Edit,
   ExternalLink,
-  Phone
+  Phone,
+  ChevronDown,
+  ArrowLeft
 } from 'lucide-react';
 import { Order, OrderStatus } from '../types';
 import { checkBelaDepositAlert } from '../utils/orderValidation';
@@ -29,6 +31,30 @@ interface OrderCardProps {
   onToggleSelect?: (id: string) => void;
   onOpenClientPortfolio?: (clientName: string) => void;
 }
+
+const MAIN_STATUSES: OrderStatus[] = [
+  'בסידור עבודה',
+  'מוכן להעמסה',
+  'בטעינה במחסן',
+  'בדרך ללקוח',
+  'נמסר באתר',
+];
+
+const SHORT_STATUS_LABELS: Record<OrderStatus, string> = {
+  'בסידור עבודה': 'בסידור',
+  'מוכן להעמסה': 'מוכן',
+  'בטעינה במחסן': 'בטעינה',
+  'בדרך ללקוח': 'בדרך',
+  'נמסר באתר': 'נמסר',
+  'חריגה / עיכוב': 'עיכוב',
+};
+
+const NEXT_STATUS_MAP: Partial<Record<OrderStatus, OrderStatus>> = {
+  'בסידור עבודה': 'מוכן להעמסה',
+  'מוכן להעמסה': 'בטעינה במחסן',
+  'בטעינה במחסן': 'בדרך ללקוח',
+  'בדרך ללקוח': 'נמסר באתר',
+};
 
 const STATUS_CONFIG: Record<
   OrderStatus,
@@ -94,6 +120,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   const isCrane = order.driver.includes('חכמת') || order.driver.includes('מנוף');
   const isExempt = order.depositsSummary === 'פטור';
   const belaAlert = checkBelaDepositAlert(order);
+  const nextStatus = NEXT_STATUS_MAP[order.status];
 
   // Driver phone lookup
   const driverPhone = isCrane ? '0520000005' : '0520000006';
@@ -150,31 +177,59 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           {/* Status Dropdown Trigger */}
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowStatusMenu(!showStatusMenu)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
+              title="לחץ לבחירה ושינוי סטטוס תעודה"
             >
-              <StatusIcon className="w-3.5 h-3.5" />
+              <StatusIcon className="w-3.5 h-3.5 shrink-0" />
               <span>{statusInfo.label}</span>
+              <ChevronDown className={`w-3 h-3 text-slate-500 transition-transform duration-200 ${showStatusMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showStatusMenu && (
-              <div className="absolute left-0 mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-30 animate-fade-in text-xs">
-                {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => {
-                      onUpdateStatus(order.id, st);
-                      setShowStatusMenu(false);
-                    }}
-                    className={`w-full text-right px-3 py-1.5 hover:bg-slate-50 transition flex items-center justify-between ${
-                      order.status === st ? 'font-bold text-blue-600 bg-blue-50/50' : 'text-slate-700'
-                    }`}
-                  >
-                    <span>{STATUS_CONFIG[st].label}</span>
-                    {order.status === st && <CheckCircle2 className="w-3 h-3 text-blue-600" />}
-                  </button>
-                ))}
-              </div>
+              <>
+                {/* Backdrop to close menu */}
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setShowStatusMenu(false)}
+                />
+                <div className="absolute left-0 mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-1.5 z-40 animate-fade-in text-xs divide-y divide-slate-100">
+                  <div className="px-3 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-50/70 flex items-center justify-between">
+                    <span>בחר סטטוס חדש:</span>
+                    <span className="font-mono text-blue-700">#{order.orderNumber}</span>
+                  </div>
+                  <div className="py-1">
+                    {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map((st) => {
+                      const cfg = STATUS_CONFIG[st];
+                      const Icon = cfg.icon;
+                      const isCurrent = order.status === st;
+
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => {
+                            onUpdateStatus(order.id, st);
+                            setShowStatusMenu(false);
+                          }}
+                          className={`w-full text-right px-3 py-2 hover:bg-slate-50 transition flex items-center justify-between gap-2 ${
+                            isCurrent ? 'font-black text-blue-700 bg-blue-50/60' : 'text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`p-1 rounded-lg ${cfg.bg} ${cfg.text} border ${cfg.border}`}>
+                              <Icon className="w-3 h-3" />
+                            </span>
+                            <span className="text-xs">{cfg.label}</span>
+                          </div>
+                          {isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -324,6 +379,61 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             💡 {order.notes}
           </p>
         )}
+
+        {/* Quick Status Stepper (שינוי סטטוס מהיר בקליק אחד) */}
+        <div className="mt-3 pt-2.5 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-1.5 text-[11px]">
+            <span className="font-bold text-slate-500">שינוי סטטוס מהיר:</span>
+            {nextStatus && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateStatus(order.id, nextStatus);
+                }}
+                className="text-[10.5px] font-black text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/90 px-2 py-0.5 rounded-lg transition active:scale-95 inline-flex items-center gap-1 shadow-2xs"
+                title={`העבר לסטטוס הבא: ${STATUS_CONFIG[nextStatus].label}`}
+              >
+                <span>קדם: {SHORT_STATUS_LABELS[nextStatus]}</span>
+                <ArrowLeft className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-5 gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
+            {MAIN_STATUSES.map((st, idx) => {
+              const isCurrent = order.status === st;
+              const currentIndex = MAIN_STATUSES.indexOf(order.status as any);
+              const isPast = currentIndex !== -1 && idx < currentIndex;
+              const Icon = STATUS_CONFIG[st].icon;
+
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateStatus(order.id, st);
+                  }}
+                  className={`py-1.5 px-0.5 rounded-lg text-[10.5px] font-bold transition flex flex-col items-center justify-center gap-0.5 text-center relative ${
+                    isCurrent
+                      ? `${STATUS_CONFIG[st].bg} ${STATUS_CONFIG[st].text} border ${STATUS_CONFIG[st].border} shadow-xs ring-1.5 ring-blue-500/40 font-black scale-[1.02]`
+                      : isPast
+                      ? 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/50'
+                      : 'text-slate-400 hover:bg-white hover:text-slate-700 hover:shadow-2xs'
+                  }`}
+                  title={`העבר ישירות לסטטוס: ${STATUS_CONFIG[st].label}`}
+                >
+                  <Icon className={`w-3 h-3 ${isCurrent ? 'scale-110' : ''}`} />
+                  <span className="truncate w-full leading-tight">{SHORT_STATUS_LABELS[st]}</span>
+                  {isCurrent && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse mt-0.5" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Card Footer: Waze + WhatsApp Direct Dispatch + Menu */}

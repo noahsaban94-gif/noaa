@@ -22,7 +22,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   unreadChatAlerts = 0,
 }) => {
   const items = [
-    { id: 'dashboard' as ActiveTab, label: 'לוח בקרה', icon: LayoutDashboard },
+    { id: 'dashboard' as ActiveTab, label: 'סידור היום', icon: LayoutDashboard },
     { id: 'schedule' as ActiveTab, label: 'סידור יומי', icon: CalendarDays, badge: ordersCount },
     {
       id: 'chat' as ActiveTab,

@@ -148,7 +148,7 @@ export const NoaChat: React.FC<NoaChatProps> = ({
         text: 'רשמתי את העיכוב בסידור (סטטוס "חריגה / עיכוב"). יצרתי קישור הודעת וואטסאפ מוכן לשליחה ללקוח עם עדכון ה-ETA החדש בוויז.',
         timestamp: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
         quickActions: [
-          { label: 'פתח לוח בקרה', action: 'open_dashboard', variant: 'outline' },
+          { label: 'פתח סידור היום', action: 'open_dashboard', variant: 'outline' },
         ],
       };
       setMessages((prev) => [...prev, userMsg, noaReply]);
