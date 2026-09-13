@@ -25,6 +25,7 @@ import {
 import { Order, OrderStatus } from '../types';
 import { getPublicTrackingUrl, getVercelTrackingUrl, VERCEL_APP_URL, GITHUB_REPO_URL } from '../utils/urlUtils';
 import { CustomerNoaChat } from './CustomerNoaChat';
+import { MiniNoaAssistant } from './MiniNoaAssistant';
 
 export interface CustomerTrackingViewProps {
   order: Order;
@@ -855,6 +856,15 @@ export const CustomerTrackingView: React.FC<CustomerTrackingViewProps> = ({
       </div>
     )}
   </main>
+
+  {/* Miniaturized Noa AI Assistant Window (Specialized Intent Recognition for this Order) */}
+  {activeTab === 'details' && (
+    <MiniNoaAssistant
+      order={order}
+      onUpdateOrder={onUpdateOrder}
+      onExpandToFullChat={() => setActiveTab('chat')}
+    />
+  )}
 </div>
 );
 };

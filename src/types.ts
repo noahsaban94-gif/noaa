@@ -21,11 +21,12 @@ export interface OrderItem {
 
 export interface CustomerRequest {
   id: string;
-  type: 'addition' | 'cancellation' | 'question' | 'urgency';
+  type: 'addition' | 'cancellation' | 'question' | 'urgency' | 'time_change';
   content: string;
   timestamp: string;
   status: 'pending' | 'approved' | 'handled' | 'rejected';
   addedItems?: string;
+  requestedTime?: string;
   responseFromNoa?: string;
 }
 

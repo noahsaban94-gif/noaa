@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Sparkles, Phone, MessageSquare, PlusCircle, XCircle, Package, Clock, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Send, Bot, Sparkles, Phone, MessageSquare, PlusCircle, XCircle, Package, Clock, ShieldCheck, CheckCircle2, AlertCircle, ArrowUpRight } from 'lucide-react';
 import { Order, CustomerRequest } from '../types';
 import { NOA_AVATAR_IMAGE } from '../data/mockAndInitialData';
+import { processNoaOrderIntent, NoaIntentResult } from '../utils/noaIntentEngine';
 
 interface CustomerChatMessage {
   id: string;
@@ -9,10 +10,11 @@ interface CustomerChatMessage {
   text: string;
   timestamp: string;
   actionCard?: {
-    type: 'addition_confirmed' | 'cancellation_pending' | 'waze_navigate' | 'call_rami';
+    type: 'addition_confirmed' | 'cancellation_pending' | 'waze_navigate' | 'call_rami' | 'status_card' | 'time_changed' | 'quick_options';
     title: string;
     details: string;
     badge?: string;
+    options?: { label: string; actionText: string }[];
   };
 }
 
@@ -28,7 +30,7 @@ export const CustomerNoaChat: React.FC<CustomerNoaChatProps> = ({ order, onUpdat
       {
         id: 'msg-welcome',
         sender: 'noa',
-        text: `שלום ${order.clientName} יקר! 🌹\nאני נועה AI, סדרנית ועוזרת השירות הדיגיטלית של ח. סבן חומרי בניין (1994) בע"מ.\nאני מלווה את הזמנה #${order.orderNumber} שלך. איך אוכל לעזור לך עכשיו?`,
+        text: `שלום ${order.clientName} יקר! 🌹\nאני נועה AI, סדרנית ועוזרת השירות הדיגיטלית של ח. סבן חומרי בניין (1994) בע"מ.\nאני מלווה את הזמנה #${order.orderNumber} שלך. תוכל לשאול על סטטוס הגעת המשלוח, לבקש שינוי שעת פריקה, או להוסיף שקים ומוצרים להעמסה!`,
         timestamp: new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
       },
     ];
@@ -60,7 +62,7 @@ export const CustomerNoaChat: React.FC<CustomerNoaChatProps> = ({ order, onUpdat
         actionCard,
       };
       setMessages((prev) => [...prev, newMsg]);
-    }, 700);
+    }, 600);
   };
 
   const handleSendMessage = async (customText?: string) => {
@@ -77,116 +79,27 @@ export const CustomerNoaChat: React.FC<CustomerNoaChatProps> = ({ order, onUpdat
     setMessages((prev) => [...prev, userMsg]);
     if (!customText) setInputVal('');
 
-    const lower = textToSend.toLowerCase();
+    // Execute specialized intent recognition
+    const intentResult: NoaIntentResult = processNoaOrderIntent(textToSend, order);
 
-    // 1. QUESTION: Order Content (מה תכולת הזמנה)
-    if (lower.includes('תכול') || lower.includes('מה יש') || lower.includes('מוצרים') || lower.includes('מה הזמנתי') || lower.includes('פירוט')) {
-      const reply = `הנה פירוט המוצרים בהזמנה מס' #${order.orderNumber}:\n\n` +
-        `📦 *מוצרים וכמויות:*\n${order.productsSummary}\n\n` +
-        `🛡️ *פקדונות משטחים ובלות:*\n${order.depositsSummary || 'פטור מחיוב פקדון'}\n\n` +
-        `מחסן מנפק: ${order.warehouse || 'מחסן 4 (החרש)'}.\nאם תרצה להוסיף מוצרים נוספים להעמסה זו, פשוט עדכן אותי כאן!`;
-      addNoaReply(reply);
+    // If order was updated (e.g. time change or addition), link and emit update
+    if (intentResult.updatedOrder && onUpdateOrder) {
+      onUpdateOrder(intentResult.updatedOrder);
+    }
+
+    if (intentResult.intent !== 'general') {
+      addNoaReply(intentResult.replyText, intentResult.actionCard as CustomerChatMessage['actionCard']);
       return;
     }
 
-    // 2. QUESTION: Where is order / ETA / Driver (מעקב הזמנה / איפה הנהג)
-    if (lower.includes('איפה') || lower.includes('מתי') || lower.includes('זמן') || lower.includes('נהג') || lower.includes('מעקב') || lower.includes('הגעה') || lower.includes('בדרך')) {
-      const driverName = order.driver || 'צוות חלוקה ח. סבן';
-      const driverPhone = order.driver.includes('חכמת') ? '050-8860897' : order.driver.includes('עלי') ? '050-8860898' : '050-8860896';
-      
-      let statusDetails = '';
-      if (order.status === 'בסידור עבודה') {
-        statusDetails = 'ההזמנה בסידור עבודה ומוקצית לסבב המתוכנן.';
-      } else if (order.status === 'מוכן להעמסה' || order.status === 'בטעינה במחסן') {
-        statusDetails = 'הצוות במחסן מלקט כעת את המוצרים ומעמיס על המשאית.';
-      } else if (order.status === 'בדרך ללקוח') {
-        statusDetails = 'המשאית יצאה מהמחסן ונמצאת בנסיעה פעילה אליך!';
-      } else if (order.status === 'נמסר באתר') {
-        statusDetails = 'ההזמנה נפרקה ונמסרה בהצלחה באתר היעד.';
-      } else {
-        statusDetails = 'קיים עיכוב קל עקב עומסי תנועה / פריקה קודמת.';
-      }
-
-      const reply = `סטטוס המשלוח הנוכחי עבור הזמנה #${order.orderNumber}:\n\n` +
-        `⚡ *סטטוס:* ${order.status}\n` +
-        `⏱️ *מועד אספקה מתוכנן:* ${order.roundAndTime} (${order.date || 'היום'})\n` +
-        `🚚 *נהג משובץ:* ${driverName} (טל' ישיר: ${driverPhone})\n` +
-        `📍 *יעד פריקה:* ${order.destinationAddress}\n\n` +
-        `${statusDetails}`;
-
-      addNoaReply(reply, {
-        type: 'waze_navigate',
-        title: 'פרטי הגעת משאית',
-        details: `נהג: ${driverName} • יעד: ${order.destinationAddress}`,
-        badge: order.status,
-      });
-      return;
-    }
-
-    // 3. ACTION: Add items to order (תוספת להזמנה)
-    if (lower.includes('להוסיף') || lower.includes('תוספת') || lower.includes('עוד שק') || lower.includes('עוד לוח') || lower.includes('הוספתי')) {
-      setAdditionModalOpen(true);
-      const reply = `בשמחה רבה! 🛠️ פתחתי עבורך חלונית מהירה להוספת פריטים להזמנה #${order.orderNumber}.\n` +
-        `תוכל לכתוב בדיוק מה חסר לך (לדוגמה: "3 שקי טיח חוץ, 1 בלה חול מחצבה") ואני אעדכן מיידית את ראמי מסארוה והמחסן להעמסה מהירה.`;
-      addNoaReply(reply);
-      return;
-    }
-
-    // 4. ACTION: Cancel order (ביטול הזמנה)
-    if (lower.includes('ביטול') || lower.includes('לבטל') || lower.includes('בטל')) {
-      const isAlreadyOnTheWay = order.status === 'בדרך ללקוח' || order.status === 'נמסר באתר';
-      
-      const newRequest: CustomerRequest = {
-        id: `req-cancel-${Date.now()}`,
-        type: 'cancellation',
-        content: `בקשת ביטול מהלקוח ${order.clientName} עבור הזמנה #${order.orderNumber}`,
-        timestamp: new Date().toISOString(),
-        status: 'pending',
-        responseFromNoa: isAlreadyOnTheWay
-          ? 'המשאית כבר יצאה לדרך, הועבר לטיפול דחוף אצל ראמי'
-          : 'ההזמנה נעצרה בסידור, נשלחה התראה מיידית לראמי',
-      };
-
-      const updatedOrder: Order = {
-        ...order,
-        customerRequests: [...(order.customerRequests || []), newRequest],
-        notes: `${order.notes ? order.notes + ' | ' : ''}⚠️ בקשת ביטול מלקוח (${new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })})`,
-      };
-
-      if (onUpdateOrder) {
-        onUpdateOrder(updatedOrder);
-      }
-
-      if (isAlreadyOnTheWay) {
-        const reply = `⚠️ שים לב: הזמנה #${order.orderNumber} נמצאת כעת בסטטוס "${order.status}" (המשאית כבר בנסיעה או נפרקה באתר).\n\n` +
-          `העברתי התראת ביטול דחופה לראמי מסארוה (סדרן ראשי). על מנת לעצור את הנהג מיידית, מומלץ לחייג ישירות לראמי בטלפון: 050-8860896.`;
-        addNoaReply(reply, {
-          type: 'call_rami',
-          title: 'התראת ביטול הועברה לסדרן',
-          details: 'משאית בתנועה — חייג מיידית לראמי לעצירת פריקה',
-          badge: 'דחוף ⚠️',
-        });
-      } else {
-        const reply = `קיבלתי את בקשתך לביטול הזמנה #${order.orderNumber}. 🛑\n\n` +
-          `רשמתי את הבקשה במערכת SabanOS והעברתי הודעה מיידית לראמי מסארוה ולמחסן לעצור את הליקוט והטעינה.\nאישור סופי יישלח אליך בהקדם.`;
-        addNoaReply(reply, {
-          type: 'cancellation_pending',
-          title: 'בקשת ביטול נקלטה בהצלחה',
-          details: 'נשלחה הודעה לראמי מסארוה לעצור את הטעינה במחסן',
-          badge: 'בטיפול ⏳',
-        });
-      }
-      return;
-    }
-
-    // 5. General / Free Query via Gemini Backend or Fallback
+    // General / Free Query via Gemini Backend or Fallback
     try {
       setIsTyping(true);
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `שאלה מלקוח (${order.clientName}) לגבי הזמנה #${order.orderNumber} (${order.destinationAddress}, מוצרים: ${order.productsSummary}, נהג: ${order.driver}, סטטוס: ${order.status}): ${textToSend}`,
+          message: `שאלה מלקוח (${order.clientName}) לגבי הזמנה #${order.orderNumber} (${order.destinationAddress}, מוצרים: ${order.productsSummary}, נהג: ${order.driver}, סטטוס: ${order.status}, מועד: ${order.roundAndTime}): ${textToSend}`,
         }),
       });
 
@@ -299,29 +212,38 @@ export const CustomerNoaChat: React.FC<CustomerNoaChatProps> = ({ order, onUpdat
       <div className="bg-slate-50 px-3 py-2 border-b border-slate-200/70 overflow-x-auto flex items-center gap-2 shrink-0 no-scrollbar">
         <button
           type="button"
-          onClick={() => handleSendMessage('מה תכולת ההזמנה שלי?')}
+          onClick={() => handleSendMessage('מה הסטטוס של המשלוח שלי?')}
           className="whitespace-nowrap px-3 py-1 rounded-xl bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200 shadow-2xs transition flex items-center gap-1.5 shrink-0"
         >
-          <Package className="w-3.5 h-3.5 text-blue-600" />
-          <span>תכולת הזמנה</span>
+          <Clock className="w-3.5 h-3.5 text-blue-600" />
+          <span>סטטוס משלוח 🚚</span>
         </button>
 
         <button
           type="button"
-          onClick={() => handleSendMessage('איפה הנהג ומתי המשלוח מגיע?')}
+          onClick={() => handleSendMessage('אפשר לשנות שעת פריקה?')}
           className="whitespace-nowrap px-3 py-1 rounded-xl bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200 shadow-2xs transition flex items-center gap-1.5 shrink-0"
         >
           <Clock className="w-3.5 h-3.5 text-indigo-600" />
-          <span>מעקב הגעה</span>
+          <span>שינוי שעת פריקה ⏰</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setAdditionModalOpen(true)}
+          onClick={() => handleSendMessage('הוסף 2 שקי מלט להזמנה')}
           className="whitespace-nowrap px-3 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-black border border-emerald-200 shadow-2xs transition flex items-center gap-1.5 shrink-0"
         >
           <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
-          <span>תוספת להזמנה ➕</span>
+          <span>+2 שקי מלט ➕</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSendMessage('מה תכולת ההזמנה שלי?')}
+          className="whitespace-nowrap px-3 py-1 rounded-xl bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-bold border border-slate-200 shadow-2xs transition flex items-center gap-1.5 shrink-0"
+        >
+          <Package className="w-3.5 h-3.5 text-slate-700" />
+          <span>תכולת הזמנה 📦</span>
         </button>
 
         <button
@@ -380,10 +302,14 @@ export const CustomerNoaChat: React.FC<CustomerNoaChatProps> = ({ order, onUpdat
                   <div className="p-3 rounded-2xl bg-white border border-blue-200/80 shadow-xs space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {msg.actionCard.type === 'addition_confirmed' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                        {(msg.actionCard.type === 'addition_confirmed' || msg.actionCard.type === 'time_changed') && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        )}
                         {msg.actionCard.type === 'cancellation_pending' && <AlertCircle className="w-4 h-4 text-amber-600" />}
                         {msg.actionCard.type === 'call_rami' && <AlertCircle className="w-4 h-4 text-rose-600" />}
-                        {msg.actionCard.type === 'waze_navigate' && <Clock className="w-4 h-4 text-blue-600" />}
+                        {(msg.actionCard.type === 'waze_navigate' || msg.actionCard.type === 'status_card') && (
+                          <Clock className="w-4 h-4 text-blue-600" />
+                        )}
                         <span className="font-extrabold text-xs text-slate-900">{msg.actionCard.title}</span>
                       </div>
                       {msg.actionCard.badge && (
@@ -394,6 +320,23 @@ export const CustomerNoaChat: React.FC<CustomerNoaChatProps> = ({ order, onUpdat
                     </div>
 
                     <p className="text-xs text-slate-600">{msg.actionCard.details}</p>
+
+                    {/* Interactive options / quick selections */}
+                    {msg.actionCard.options && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                        {msg.actionCard.options.map((opt, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleSendMessage(opt.actionText)}
+                            className="text-right px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold text-xs transition flex items-center justify-between border border-blue-100 active:scale-98"
+                          >
+                            <span>{opt.label}</span>
+                            <ArrowUpRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="pt-1 flex items-center gap-2">
                       <a
