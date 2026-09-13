@@ -19,6 +19,16 @@ export interface OrderItem {
   type?: 'bigbag' | 'bag' | 'block' | 'drywall' | 'crane' | 'unloaded_transport' | 'general';
 }
 
+export interface CustomerRequest {
+  id: string;
+  type: 'addition' | 'cancellation' | 'question' | 'urgency';
+  content: string;
+  timestamp: string;
+  status: 'pending' | 'approved' | 'handled' | 'rejected';
+  addedItems?: string;
+  responseFromNoa?: string;
+}
+
 export interface Order {
   id: string;
   roundAndTime: string; // למשל: סבב 1 (07:30)
@@ -39,6 +49,7 @@ export interface Order {
   notes?: string;
   items?: OrderItem[];
   driveFolderUrl?: string;
+  customerRequests?: CustomerRequest[];
 }
 
 export interface Driver {
@@ -139,4 +150,4 @@ export interface CatalogProduct {
   };
 }
 
-export type ActiveTab = 'dashboard' | 'schedule' | 'chat' | 'clients' | 'deposits' | 'settings';
+export type ActiveTab = 'dashboard' | 'schedule' | 'chat' | 'clients' | 'deposits' | 'settings' | 'tracking';

@@ -106,7 +106,11 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
         return false;
       }
 
-      if (statusFilter !== 'all' && o.status !== statusFilter) {
+      if (statusFilter === 'active_only' && o.status === 'נמסר באתר') {
+        return false;
+      }
+
+      if (statusFilter !== 'all' && statusFilter !== 'active_only' && o.status !== statusFilter) {
         return false;
       }
 
@@ -372,6 +376,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
             className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="all">כל הסטטוסים</option>
+            <option value="active_only">פעילות בלבד (ללא סופק)</option>
             <option value="בסידור עבודה">בסידור עבודה</option>
             <option value="מוכן להעמסה">מוכן להעמסה</option>
             <option value="בטעינה במחסן">בטעינה במחסן</option>

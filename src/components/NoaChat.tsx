@@ -19,12 +19,14 @@ import {
 import { ChatMessage, Order, ActiveTab } from '../types';
 import { ChatBubble } from './ChatBubble';
 import { NOA_AVATAR_IMAGE } from '../data/mockAndInitialData';
+import { getPublicTrackingUrl } from '../utils/urlUtils';
 
 interface NoaChatProps {
   orders: Order[];
   onAddOrder: (orderData: Partial<Order>) => void;
   onOpenMorningReport: () => void;
   onShowAlerts: () => void;
+  onOpenTracking?: (order: Order) => void;
   messages?: ChatMessage[];
   setMessages?: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   onSyncSheet?: (source?: 'navbar' | 'chat' | 'settings' | 'auto') => Promise<void> | void;
@@ -37,6 +39,7 @@ export const NoaChat: React.FC<NoaChatProps> = ({
   onAddOrder,
   onOpenMorningReport,
   onShowAlerts,
+  onOpenTracking,
   messages: externalMessages,
   setMessages: externalSetMessages,
   onSyncSheet,
@@ -47,9 +50,10 @@ export const NoaChat: React.FC<NoaChatProps> = ({
     {
       id: 'welcome-msg',
       sender: 'noa',
-      text: `היי ראמי אהובי וצוות ח.סבן! 🌹\nאני מחוברת לסידור העבודה בגיליון בזמן אמת.\nכל נתוני הסבבים, שיבוצי הנהגים (עלי וחכמת) וחישובי הפקדונות מוכנים לפקודתך.\n\nתוכל לבקש ממני:\n• להפיק דוח בוקר יומי (/דוח_בוקר)\n• תדריך סיכום אישי (/תדריך_ראמי)\n• נרמול הזמנה חדשה מקבלן (למשל: "3 בלות חול, 2 בלות סומסום, 30 שקי מלט")\n• לבדוק זמינות משאית מנוף או מחסנים`,
+      text: `היי ראמי אהובי וצוות ח.סבן! 🌹\nאני מחוברת לסידור העבודה בגיליון בזמן אמת.\nכל נתוני הסבבים, שיבוצי הנהגים (עלי וחכמת) וחישובי הפקדונות מוכנים לפקודתך.\n\nתוכל לבקש ממני:\n• להפיק דוח בוקר יומי (/דוח_בוקר)\n• תדריך סיכום אישי (/תדריך_ראמי)\n• הפקת דף מעקב דיגיטלי ללקוח (/דף_מעקב)\n• נרמול הזמנה חדשה מקבלן (למשל: "3 בלות חול, 2 בלות סומסום, 30 שקי מלט")\n• לבדוק זמינות משאית מנוף או מחסנים`,
       timestamp: 'עכשיו',
       quickActions: [
+        { label: 'דף מעקב ללקוח 📱', action: '/דף_מעקב', variant: 'primary' },
         { label: 'תדריך סיכום לראמי 🌹', action: 'trigger_rami_briefing', variant: 'primary' },
         { label: 'הפקת דוח בוקר 🚚', action: 'generate_morning_report', variant: 'success' },
         { label: 'נרמול הזמנה מקבלן 📦', action: 'quick_normalize_sample', variant: 'outline' },
@@ -152,6 +156,35 @@ export const NoaChat: React.FC<NoaChatProps> = ({
         ],
       };
       setMessages((prev) => [...prev, userMsg, noaReply]);
+      return;
+    }
+
+    if (action === 'open_tracking_page') {
+      const orderNum = payload?.orderNumber;
+      const orderId = payload?.orderId;
+      const target = orders.find((o) => (orderNum && o.orderNumber === orderNum) || (orderId && o.id === orderId)) || orders[0];
+      if (target && onOpenTracking) {
+        onOpenTracking(target);
+      }
+      return;
+    }
+
+    if (action === 'share_tracking_whatsapp') {
+      const orderNum = payload?.orderNumber;
+      const orderId = payload?.orderId;
+      const target = orders.find((o) => (orderNum && o.orderNumber === orderNum) || (orderId && o.id === orderId)) || orders[0];
+      if (target) {
+        const url = getPublicTrackingUrl(target.orderNumber);
+        const msg = `שלום ${target.clientName} 🌹\nמצורף קישור למעקב חי אחר הזמנה #${target.orderNumber} מחברת ח. סבן חומרי בניין (1994) בע"מ:\n${url}\nסטטוס: ${target.status}\nיעד: ${target.destinationAddress}`;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+      }
+      return;
+    }
+
+    if (action === 'copy_waze_link') {
+      if (payload?.url && typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(payload.url);
+      }
       return;
     }
 
@@ -293,6 +326,12 @@ export const NoaChat: React.FC<NoaChatProps> = ({
             <span>🔄 סנכרן גיליון עכשיו</span>
           </button>
         )}
+        <button
+          onClick={() => handleSendMessage('/דף_מעקב')}
+          className="text-xs px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:border-blue-300 text-blue-700 font-bold whitespace-nowrap shadow-2xs hover:bg-blue-100/70 transition"
+        >
+          📱 דף מעקב ללקוח (/דף_מעקב)
+        </button>
         <button
           onClick={() => handleSendMessage('/תדריך_ראמי')}
           className="text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-blue-300 text-slate-700 font-medium whitespace-nowrap shadow-2xs hover:bg-blue-50/50 transition"

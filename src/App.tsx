@@ -18,6 +18,8 @@ import { NotificationToast } from './components/NotificationToast';
 import { triggerReadyForLoadingNotification } from './lib/notificationService';
 import { DriverRouteView } from './components/DriverRouteView';
 import { BulkRouteData } from './lib/routeOptimizer';
+import { CustomerTrackingView } from './components/CustomerTrackingView';
+import { CustomerTrackingModal } from './components/CustomerTrackingModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -25,6 +27,9 @@ export default function App() {
   const [drivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedTrackingOrder, setSelectedTrackingOrder] = useState<Order | null>(null);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [isStandaloneTracking, setIsStandaloneTracking] = useState<boolean>(false);
 
   // Chat messages state with persistence in localStorage
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
@@ -41,9 +46,10 @@ export default function App() {
       {
         id: 'welcome-msg',
         sender: 'noa',
-        text: `היי ראמי אהובי וצוות ח.סבן! 🌹\nאני מחוברת לסידור העבודה בגיליון בזמן אמת.\nכל נתוני הסבבים, שיבוצי הנהגים (עלי וחכמת) וחישובי הפקדונות מוכנים לפקודתך.\n\nתוכל לבקש ממני:\n• להפיק דוח בוקר יומי (/דוח_בוקר)\n• תדריך סיכום אישי (/תדריך_ראמי)\n• נרמול הזמנה חדשה מקבלן (למשל: "3 בלות חול, 2 בלות סומסום, 30 שקי מלט")\n• לבדוק זמינות משאית מנוף או מחסנים`,
+        text: `היי ראמי אהובי וצוות ח.סבן! 🌹\nאני מחוברת לסידור העבודה בגיליון בזמן אמת.\nכל נתוני הסבבים, שיבוצי הנהגים (עלי וחכמת) וחישובי הפקדונות מוכנים לפקודתך.\n\nתוכל לבקש ממני:\n• להפיק דוח בוקר יומי (/דוח_בוקר)\n• תדריך סיכום אישי (/תדריך_ראמי)\n• הפקת דף מעקב דיגיטלי ללקוח (/דף_מעקב [מספר/שם])\n• נרמול הזמנה חדשה מקבלן (למשל: "3 בלות חול, 2 בלות סומסום, 30 שקי מלט")\n• לבדוק זמינות משאית מנוף או מחסנים`,
         timestamp: 'עכשיו',
         quickActions: [
+          { label: 'דף מעקב ללקוח 📱', action: '/דף_מעקב', variant: 'primary' },
           { label: 'תדריך סיכום לראמי 🌹', action: 'trigger_rami_briefing', variant: 'primary' },
           { label: 'הפקת דוח בוקר 🚚', action: 'generate_morning_report', variant: 'success' },
           { label: 'נרמול הזמנה מקבלן 📦', action: 'quick_normalize_sample', variant: 'outline' },
@@ -103,6 +109,31 @@ export default function App() {
         setOrders(cached);
       }
 
+      // Check for customer tracking parameter (?track=6215410 or ?order=6215410)
+      const trackCode = urlParams.get('track') || urlParams.get('order');
+      if (trackCode) {
+        setIsStandaloneTracking(true);
+        const pool = (cached && cached.length > 0) ? cached : INITIAL_ORDERS;
+        const matched = pool.find((o: Order) => o.orderNumber === trackCode || o.id === trackCode);
+        if (matched) {
+          setSelectedTrackingOrder(matched);
+          setActiveTab('tracking');
+        } else {
+          try {
+            const trRes = await fetch(`/api/tracking/${trackCode}`);
+            if (trRes.ok) {
+              const trData = await trRes.json();
+              if (trData.order) {
+                setSelectedTrackingOrder(trData.order);
+                setActiveTab('tracking');
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load tracking data for code:', trackCode, e);
+          }
+        }
+      }
+
       // Sync from backend
       try {
         const res = await fetch('/api/sheet/orders');
@@ -159,6 +190,28 @@ export default function App() {
       });
     } catch (e) {
       console.warn('Backend sync failed, saved in local cache:', e);
+    }
+  }, []);
+
+  // Update complete order (with backend sync and offline persistence)
+  const handleUpdateOrder = useCallback(async (updatedOrder: Order) => {
+    setOrders((prev) => {
+      const updated = prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+      saveCachedOrders(updated);
+      return updated;
+    });
+
+    // Update selectedTrackingOrder if it is currently open
+    setSelectedTrackingOrder((curr) => (curr && curr.id === updatedOrder.id ? updatedOrder : curr));
+
+    try {
+      await fetch(`/api/sheet/orders/${updatedOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedOrder),
+      });
+    } catch (e) {
+      console.warn('Backend sync order failed, saved in local cache:', e);
     }
   }, []);
 
@@ -226,6 +279,11 @@ export default function App() {
       saveCachedOrders(updated);
       return updated;
     });
+  }, []);
+
+  const handleOpenTracking = useCallback((order: Order) => {
+    setSelectedTrackingOrder(order);
+    setIsTrackingModalOpen(true);
   }, []);
 
   // Sync with Google Sheets & trigger custom Noa AI alert notification
@@ -367,6 +425,7 @@ export default function App() {
                 setIsNewOrderOpen(true);
               }}
               onOpenMorningReport={() => setIsMorningReportOpen(true)}
+              onOpenTracking={handleOpenTracking}
             />
           )}
 
@@ -382,6 +441,7 @@ export default function App() {
               }}
               onOpenMorningReport={() => setIsMorningReportOpen(true)}
               searchQuery={searchQuery}
+              onOpenTracking={handleOpenTracking}
             />
           )}
 
@@ -397,6 +457,18 @@ export default function App() {
                 onAddOrder={handleSaveNewOrder}
                 onOpenMorningReport={() => setIsMorningReportOpen(true)}
                 onShowAlerts={() => setActiveTab('dashboard')}
+                onOpenTracking={handleOpenTracking}
+              />
+            </div>
+          )}
+
+          {activeTab === 'tracking' && (
+            <div className="max-w-4xl mx-auto py-2">
+              <CustomerTrackingView
+                order={selectedTrackingOrder || orders[0]}
+                allOrders={orders}
+                onSelectOrder={(ord) => setSelectedTrackingOrder(ord)}
+                onBack={() => setActiveTab('dashboard')}
               />
             </div>
           )}
@@ -429,6 +501,16 @@ export default function App() {
         setActiveTab={setActiveTab}
         ordersCount={orders.length}
         unreadChatAlerts={unreadChatAlerts}
+      />
+
+      {/* Customer Order Tracking Modal */}
+      <CustomerTrackingModal
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+        order={selectedTrackingOrder || orders[0]}
+        allOrders={orders}
+        onSelectOrder={(ord) => setSelectedTrackingOrder(ord)}
+        onUpdateOrder={handleUpdateOrder}
       />
 
       {/* New Order Modal */}
@@ -467,6 +549,24 @@ export default function App() {
               window.history.replaceState({}, document.title, window.location.pathname);
             }}
             onUpdateOrderStatus={handleUpdateStatus}
+          />
+        </div>
+      )}
+
+      {/* Direct Mobile Customer Tracking View when opened via Tracking Link (?track=...) */}
+      {isStandaloneTracking && selectedTrackingOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-100">
+          <CustomerTrackingView
+            order={selectedTrackingOrder}
+            allOrders={orders}
+            onSelectOrder={(ord) => setSelectedTrackingOrder(ord)}
+            isStandalone={true}
+            onUpdateOrder={handleUpdateOrder}
+            onBack={() => {
+              setIsStandaloneTracking(false);
+              setActiveTab('dashboard');
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }}
           />
         </div>
       )}

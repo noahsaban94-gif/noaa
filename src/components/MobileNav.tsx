@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Users,
   Package,
+  Smartphone,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 
@@ -31,8 +32,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({
       isChat: true,
       alertBadge: unreadChatAlerts > 0 ? unreadChatAlerts : undefined,
     },
+    { id: 'tracking' as ActiveTab, label: 'דף מעקב', icon: Smartphone },
     { id: 'clients' as ActiveTab, label: 'קבלנים', icon: Users },
-    { id: 'deposits' as ActiveTab, label: 'פקדונות', icon: Package },
   ];
 
   return (

@@ -22,6 +22,7 @@ interface OrdersScheduleViewProps {
   onOpenNewOrder: (defaultDate?: string) => void;
   onOpenMorningReport: () => void;
   searchQuery: string;
+  onOpenTracking?: (order: Order) => void;
 }
 
 export const OrdersScheduleView: React.FC<OrdersScheduleViewProps> = ({
@@ -32,6 +33,7 @@ export const OrdersScheduleView: React.FC<OrdersScheduleViewProps> = ({
   onOpenNewOrder,
   onOpenMorningReport,
   searchQuery,
+  onOpenTracking,
 }) => {
   // Top-level schedule view mode: 'calendar' (default, requested Calendar View) or 'advanced_schedule'
   const [scheduleMode, setScheduleMode] = useState<'calendar' | 'advanced_schedule'>('calendar');
@@ -185,6 +187,7 @@ export const OrdersScheduleView: React.FC<OrdersScheduleViewProps> = ({
           onSelectAllForDriver={handleSelectAllForDriver}
           onClearSelection={handleClearSelection}
           onOpenBulkNavigate={handleOpenBulkNavigate}
+          onOpenTracking={onOpenTracking}
         />
       ) : (
         <CalendarScheduleView

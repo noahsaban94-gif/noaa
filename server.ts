@@ -505,6 +505,59 @@ app.post('/api/sheet/sync', async (req: Request, res: Response) => {
   });
 });
 
+// Helper to get active URL for links
+function getPublicBaseUrl(req?: Request): string {
+  if (!req) return '';
+  const host = req.get('host') || '';
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  if (host) {
+    return `${proto}://${host}`;
+  }
+  return '';
+}
+
+// GET /api/tracking/:orderNumber - Fetch single order tracking payload
+app.get('/api/tracking/:orderNumber', (req: Request, res: Response) => {
+  const { orderNumber } = req.params;
+  let target = ordersStore.find((o) => o.orderNumber === orderNumber || o.id === orderNumber);
+
+  if (!target && orderNumber) {
+    target = ordersStore.find((o) => o.orderNumber.includes(orderNumber) || o.clientName.includes(orderNumber));
+  }
+
+  if (!target) {
+    // Return a graceful default order if order isn't in memory yet
+    target = {
+      id: `ord-${orderNumber}`,
+      orderNumber: orderNumber || '6215410',
+      clientName: 'לקוח ח. סבן חומרי בניין',
+      clientPhone: '09-7440023',
+      roundAndTime: 'סבב בוקר (08:00)',
+      destinationAddress: 'אתר הלקוח',
+      city: 'מרכז הארץ',
+      driver: 'משאית ח. סבן (סדרן ראמי)',
+      warehouse: 'מחסן 4 החרש',
+      productsSummary: 'הזמנת חומרי בניין',
+      depositsSummary: 'לפי תעודת משלוח',
+      wazeUrl: `https://www.waze.com/ul?navigate=yes`,
+      status: 'בסידור עבודה',
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  res.json({
+    success: true,
+    order: target,
+  });
+});
+
+// Direct tracking URL redirects for clients: /track/:orderNumber, /t/:orderNumber, /tracking/:orderNumber
+app.get(['/track/:orderNumber', '/t/:orderNumber', '/tracking/:orderNumber'], (req: Request, res: Response) => {
+  const { orderNumber } = req.params;
+  res.redirect(`/?track=${encodeURIComponent(orderNumber)}`);
+});
+
 // ==========================================
 // 2. Noa AI Chat & Assistant Endpoint
 // ==========================================
@@ -571,6 +624,111 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       quickActions: [
         { label: 'העתק דוח לוואטסאפ', action: 'copy_morning_report', variant: 'primary' },
         { label: 'אישור כל ההזמנות', action: 'approve_all', variant: 'success' },
+      ],
+    });
+    return;
+  }
+
+  // Command: /דף_מעקב - Customer Order Tracking Generator
+  if (trimmed.startsWith('/דף_מעקב') || trimmed.includes('דף_מעקב') || trimmed.includes('דף מעקב')) {
+    // Extract query parameter if provided (e.g. "/דף_מעקב 6215410" or "/דף_מעקב אלום רעננה")
+    const queryPart = trimmed.replace(/^\/דף_מעקב\s*/, '').replace(/^דף_מעקב\s*/, '').replace(/^דף מעקב\s*/, '').trim();
+
+    let targetOrder = ordersStore[0];
+    if (queryPart) {
+      const match = ordersStore.find(
+        (o) =>
+          o.orderNumber.includes(queryPart) ||
+          o.clientName.toLowerCase().includes(queryPart.toLowerCase()) ||
+          o.destinationAddress.toLowerCase().includes(queryPart.toLowerCase())
+      );
+      if (match) {
+        targetOrder = match;
+      }
+    }
+
+    if (!targetOrder) {
+      targetOrder = {
+        id: 'ord-sample',
+        orderNumber: '6215410',
+        clientName: 'אלום רעננה / שפירא',
+        roundAndTime: 'סבב 1 (07:30)',
+        destinationAddress: 'הפרחים 12, רעננה',
+        city: 'רעננה',
+        driver: 'עלי (משאית איסוזו)',
+        warehouse: '🏟️ מחסן 1 (התלמיד)',
+        productsSummary: '30 לוחות גבס 4K, 15 ניצב 50, 8 מסלול 50, 4 שקי שפכטל אמריקאי',
+        depositsSummary: '1 משטח סבן (60060)',
+        wazeUrl: 'https://www.waze.com/ul?q=%D7%94%D7%A4%D7%A8%D7%97%D7%99%D7%9D%2012%2C%20%D7%A8%D7%A2%D7%A0%D7%A0%D7%94&navigate=yes',
+        status: 'בדרך ללקוח',
+        date: '2026-09-13',
+        createdAt: '2026-09-13 07:30',
+      };
+    }
+
+    // Map internal status to requested 4 stages: ⏳ בהמתנה / ⚙️ בהכנה / 🚗 בדרך / ✅ סופקה
+    let stageEmoji = '⏳';
+    let stageLabel = 'בהמתנה';
+    let stageDesc = 'נקלטה בסידור העבודה וממתינה לפתיחת קו';
+
+    if (targetOrder.status === 'מוכן להעמסה' || targetOrder.status === 'בטעינה במחסן') {
+      stageEmoji = '⚙️';
+      stageLabel = 'בהכנה';
+      stageDesc = 'בליקוט וטעינה במחסן';
+    } else if (targetOrder.status === 'בדרך ללקוח' || targetOrder.status === 'חריגה / עיכוב') {
+      stageEmoji = '🚗';
+      stageLabel = 'בדרך';
+      stageDesc = 'הנהג יצא מהמחסן ונמצא בנסיעה ישירה לאתר';
+    } else if (targetOrder.status === 'נמסר באתר') {
+      stageEmoji = '✅';
+      stageLabel = 'סופקה';
+      stageDesc = 'נפרקה ונמסרה בהצלחה באתר הלקוח';
+    }
+
+    const rawWaze = targetOrder.wazeUrl || `https://www.waze.com/ul?q=${encodeURIComponent(targetOrder.destinationAddress)}&navigate=yes`;
+    const publicTrackingUrl = `${getPublicBaseUrl(req)}/?track=${encodeURIComponent(targetOrder.orderNumber)}`;
+
+    const trackingText =
+      `היי ראמי אהובי וצוות ח.סבן! 🌹\n` +
+      `הכנתי את דף המעקב המבוקש בפורמט המאושר של ח. סבן חומרי בניין (1994) בע"מ:\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `📱 *דף מעקב הזמנה דיגיטלי — ח. סבן חומרי בניין*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `👤 *לקוח:* ${targetOrder.clientName}\n` +
+      `🔢 *מס' הזמנה בולט:* #${targetOrder.orderNumber}\n` +
+      `⚡ *סטטוס עדכני:* ${stageEmoji} *${stageLabel}* (${stageDesc})\n` +
+      `📅 *אספקה בתאריך:* ${targetOrder.date || 'היום'} | ${targetOrder.roundAndTime}\n` +
+      `📍 *לכתובת:* ${targetOrder.destinationAddress}\n` +
+      `🚚 *נהג משובץ:* ${targetOrder.driver}\n` +
+      `📦 *פירוט מוצרים:* ${targetOrder.productsSummary}\n` +
+      `🛡️ *פקדונות:* ${targetOrder.depositsSummary || 'פטור'}\n\n` +
+      `🔗 *קישור מעקב ישיר ללקוח:*\n${publicTrackingUrl}\n\n` +
+      `📍 *קישור Waze גולמי לכתובת:*\n${rawWaze}\n\n` +
+      `📞 *איש קשר:* ראמי מסארוה (050-8860896) | מוקד ח. סבן (09-7440023)\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `פקודת */דף_מעקב* מוגדרת קבוע במערכת SABAN OS. תוכל להקיש */דף_מעקב [מספר/שם]* בכל שלב לקבלת דף מעקב מיידי! 💪`;
+
+    res.json({
+      text: trackingText,
+      quickActions: [
+        {
+          label: `פתח דף מעקב חי #${targetOrder.orderNumber} 📱`,
+          action: 'open_tracking_page',
+          payload: { orderNumber: targetOrder.orderNumber, orderId: targetOrder.id },
+          variant: 'primary',
+        },
+        {
+          label: 'שתף בוואטסאפ ללקוח 💬',
+          action: 'share_tracking_whatsapp',
+          payload: { orderNumber: targetOrder.orderNumber, orderId: targetOrder.id },
+          variant: 'success',
+        },
+        {
+          label: 'העתק קישור Waze 📍',
+          action: 'copy_waze_link',
+          payload: { url: rawWaze },
+          variant: 'outline',
+        },
       ],
     });
     return;
@@ -685,9 +843,7 @@ app.post('/api/routes', (req: Request, res: Response) => {
       return;
     }
     const code = (route.code || Math.random().toString(36).substring(2, 8)).toUpperCase();
-    const host = req.get('host');
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const shortUrl = `${protocol}://${host}/r/${code}`;
+    const shortUrl = `${getPublicBaseUrl(req)}/r/${code}`;
 
     const savedRoute = {
       ...route,

@@ -59,6 +59,7 @@ export interface CalendarViewProps {
   onSelectAllForDriver?: (driverName: string) => void;
   onClearSelection?: () => void;
   onOpenBulkNavigate?: (driver?: string) => void;
+  onOpenTracking?: (order: Order) => void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -74,6 +75,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onSelectAllForDriver,
   onClearSelection,
   onOpenBulkNavigate,
+  onOpenTracking,
 }) => {
   // Calendar date state: default to 2026-09-13 (today in system)
   const [currentYear, setCurrentYear] = useState<number>(2026);
@@ -879,6 +881,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 onEditOrder={onEditOrder}
                 isSelected={selectedOrderIds.includes(order.id)}
                 onToggleSelect={onToggleSelectOrder}
+                onOpenTracking={onOpenTracking}
               />
             ))}
           </div>

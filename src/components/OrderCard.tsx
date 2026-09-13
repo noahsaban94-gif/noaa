@@ -17,16 +17,23 @@ import {
   ExternalLink,
   Phone,
   ChevronDown,
-  ArrowLeft
+  ArrowLeft,
+  Smartphone,
+  Sparkles,
+  Copy,
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { Order, OrderStatus } from '../types';
 import { checkBelaDepositAlert } from '../utils/orderValidation';
+import { getVercelTrackingUrl } from '../utils/urlUtils';
 
 interface OrderCardProps {
   order: Order;
   onUpdateStatus: (id: string, newStatus: OrderStatus) => void;
   onDeleteOrder: (id: string) => void;
   onEditOrder?: (order: Order) => void;
+  onOpenTracking?: (order: Order) => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   onOpenClientPortfolio?: (clientName: string) => void;
@@ -109,11 +116,22 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onUpdateStatus,
   onDeleteOrder,
   onEditOrder,
+  onOpenTracking,
   isSelected = false,
   onToggleSelect,
   onOpenClientPortfolio,
 }) => {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [copiedMagic, setCopiedMagic] = useState(false);
+
+  const handleCopyMagicLink = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = getVercelTrackingUrl(order.orderNumber);
+    navigator.clipboard.writeText(link).catch(() => {});
+    setCopiedMagic(true);
+    setTimeout(() => setCopiedMagic(false), 2500);
+  };
+
   const statusInfo = STATUS_CONFIG[order.status] || STATUS_CONFIG['בסידור עבודה'];
   const StatusIcon = statusInfo.icon;
 
@@ -380,6 +398,28 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           </p>
         )}
 
+        {/* Customer Requests from Noa AI (תוספת / בירור / ביטול ששלח הלקוח) */}
+        {order.customerRequests && order.customerRequests.length > 0 && (
+          <div className="mt-2.5 p-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-950 text-[11px] flex items-start gap-1.5 animate-in fade-in">
+            <span className="text-sm">🌹</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-extrabold text-purple-900 block">בקשת לקוח (נועה AI):</span>
+              <p className="truncate text-purple-800 font-medium">
+                {order.customerRequests[order.customerRequests.length - 1].content}
+              </p>
+            </div>
+            {onOpenTracking && (
+              <button
+                type="button"
+                onClick={() => onOpenTracking(order)}
+                className="px-1.5 py-0.5 rounded bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px] shrink-0"
+              >
+                צפה
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Quick Status Stepper (שינוי סטטוס מהיר בקליק אחד) */}
         <div className="mt-3 pt-2.5 border-t border-slate-100">
           <div className="flex items-center justify-between mb-1.5 text-[11px]">
@@ -438,25 +478,53 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
       {/* Card Footer: Waze + WhatsApp Direct Dispatch + Menu */}
       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {/* Direct Waze Button */}
           <a
             href={order.wazeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold border border-sky-200 transition"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold border border-sky-200 transition"
             title="פתח ניווט בוויז ישירות לכתובת היעד"
           >
             <Navigation className="w-3.5 h-3.5 text-sky-600" />
             <span>Waze</span>
           </a>
 
+          {/* Customer Tracking Page Button */}
+          {onOpenTracking && (
+            <button
+              type="button"
+              onClick={() => onOpenTracking(order)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 transition"
+              title="פתח דף מעקב דיגיטלי ללקוח"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-blue-600" />
+              <span>דף מעקב</span>
+            </button>
+          )}
+
+          {/* Vercel Magic Link Button */}
+          <button
+            type="button"
+            onClick={handleCopyMagicLink}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition active:scale-95 ${
+              copiedMagic
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+            }`}
+            title="העתק לינק קסם של Vercel למעקב לקוח"
+          >
+            {copiedMagic ? <Check className="w-3.5 h-3.5 text-white" /> : <Sparkles className="w-3.5 h-3.5 text-indigo-600" />}
+            <span>{copiedMagic ? 'הועתק!' : 'לינק קסם 🪄'}</span>
+          </button>
+
           {/* WhatsApp Direct Broadcast to Driver */}
           <a
             href={generateWhatsAppLink()}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm shadow-emerald-500/20 transition active:scale-95"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm shadow-emerald-500/20 transition active:scale-95"
             title={`שדר כרטיס משימה ישירות לוואטסאפ של ${driverShortName}`}
           >
             <Send className="w-3 h-3" />

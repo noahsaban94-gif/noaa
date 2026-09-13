@@ -6,6 +6,7 @@
  */
 
 import { Order, OrderStatus } from '../types';
+import { getPublicRouteUrl } from '../utils/urlUtils';
 
 export interface RouteStop {
   orderId: string;
@@ -289,8 +290,7 @@ export function generateShortCode(): string {
  */
 export async function saveBulkRoute(routeData: Omit<BulkRouteData, 'shortUrl'>): Promise<BulkRouteData> {
   const code = routeData.code || generateShortCode();
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const localShortUrl = `${origin}/?route=${code}`;
+  const localShortUrl = getPublicRouteUrl(code);
 
   const fullRoute: BulkRouteData = {
     ...routeData,

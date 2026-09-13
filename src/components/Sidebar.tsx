@@ -10,7 +10,8 @@ import {
   ShieldCheck,
   Truck,
   Sparkles,
-  PhoneCall
+  PhoneCall,
+  Smartphone
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 import { NOA_AVATAR_IMAGE } from '../data/mockAndInitialData';
@@ -54,6 +55,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'לקוחות וקבלנים',
       icon: Users,
       badge: '28',
+    },
+    {
+      id: 'tracking' as ActiveTab,
+      label: 'דף מעקב לקוח 📱',
+      icon: Smartphone,
+      badge: 'חדש',
     },
     {
       id: 'deposits' as ActiveTab,
@@ -158,8 +165,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Footer Info & User Profile */}
+      {/* Footer Info & External Quick Links */}
       <div className="pt-3 border-t border-slate-200/70 space-y-2 text-xs">
+        <div className="grid grid-cols-2 gap-1.5">
+          <a
+            href="https://noaa-three.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-2 rounded-xl bg-slate-100/70 hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition"
+            title="פתח את האפליקציה ב-Vercel (לינק קסם למעקב לקוחות)"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-bold text-[11px] truncate">Vercel ⚡</span>
+            </div>
+            <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
+          </a>
+
+          <a
+            href="https://github.com/noahsaban94-gif/noaa"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-2 rounded-xl bg-slate-100/70 hover:bg-slate-200 text-slate-700 hover:text-slate-900 transition"
+            title="פתח מאגר GitHub"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="text-xs shrink-0">🐙</span>
+              <span className="font-bold text-[11px] truncate">GitHub</span>
+            </div>
+            <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
+          </a>
+        </div>
+
         <a
           href="https://docs.google.com/spreadsheets/d/1VA9J6n9IYcooO_s2xOpnkvyDQWWQD3pfhh0cnenCkoA/edit"
           target="_blank"
