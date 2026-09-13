@@ -1,0 +1,6 @@
+{
+  "name": "נועה AI — ניהול לוגיסטיקה ח. סבן",
+  "description": "מערכת הפעלה לוגיסטית וסידור עבודה יומי ח. סבן חומרי בניין (1994) בע\"מ — חיבור מאובטח ל-Google Sheets, צ'אט נועה AI, שיבוץ נהגים וחישוב פקדונות.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

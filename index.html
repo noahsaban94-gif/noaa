@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>נועה AI — ניהול לוגיסטיקה ח. סבן</title>
+    <meta name="description" content="מערכת הפעלה לוגיסטית וסידור עבודה יומי ח. סבן חומרי בניין (1994) בע&quot;מ — חיבור מאובטח ל-Google Sheets, צ'אט נועה AI, שיבוץ נהגים וחישוב פקדונות." />
+    <meta property="og:title" content="נועה AI — ניהול לוגיסטיקה ח. סבן" />
+    <meta property="og:description" content="מערכת הפעלה לוגיסטית וסידור עבודה יומי ח. סבן חומרי בניין (1994) בע&quot;מ — חיבור מאובטח ל-Google Sheets, צ'אט נועה AI, שיבוץ נהגים וחישוב פקדונות." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#f0f4f9" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="נועה AI" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      // Clean up benign development WebSocket warnings in sandboxed preview iframe
+      (function() {
+        const origWarn = console.warn;
+        const origError = console.error;
+        console.warn = function(...args) {
+          if (typeof args[0] === 'string' && args[0].includes('[vite]')) return;
+          origWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+          if (typeof args[0] === 'string' && (args[0].includes('[vite]') || args[0].includes('vite-plugin-pwa'))) return;
+          origError.apply(console, args);
+        };
+      })();
+    </script>
+  </head>
+  <body class="bg-[#f3f4f8] text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,276 @@
+import React, { useState } from 'react';
+import {
+  MapPin,
+  Truck,
+  Building2,
+  Package,
+  ShieldCheck,
+  Send,
+  Navigation,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  MoreVertical,
+  Trash2,
+  Edit,
+  ExternalLink,
+  Phone
+} from 'lucide-react';
+import { Order, OrderStatus } from '../types';
+
+interface OrderCardProps {
+  order: Order;
+  onUpdateStatus: (id: string, newStatus: OrderStatus) => void;
+  onDeleteOrder: (id: string) => void;
+  onEditOrder?: (order: Order) => void;
+}
+
+const STATUS_CONFIG: Record<
+  OrderStatus,
+  { label: string; bg: string; text: string; border: string; icon: any }
+> = {
+  'בסידור עבודה': {
+    label: 'בסידור עבודה',
+    bg: 'bg-slate-100',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+    icon: Clock,
+  },
+  'מוכן להעמסה': {
+    label: 'מוכן להעמסה',
+    bg: 'bg-sky-50',
+    text: 'text-sky-700',
+    border: 'border-sky-200',
+    icon: Package,
+  },
+  'בטעינה במחסן': {
+    label: 'בטעינה במחסן',
+    bg: 'bg-amber-50',
+    text: 'text-amber-800',
+    border: 'border-amber-200',
+    icon: Truck,
+  },
+  'בדרך ללקוח': {
+    label: 'בדרך ללקוח',
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-200',
+    icon: Navigation,
+  },
+  'נמסר באתר': {
+    label: 'סופק בהצלחה',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    border: 'border-emerald-200',
+    icon: CheckCircle2,
+  },
+  'חריגה / עיכוב': {
+    label: 'חריגה / עיכוב',
+    bg: 'bg-rose-50',
+    text: 'text-rose-700',
+    border: 'border-rose-200',
+    icon: AlertTriangle,
+  },
+};
+
+export const OrderCard: React.FC<OrderCardProps> = ({
+  order,
+  onUpdateStatus,
+  onDeleteOrder,
+  onEditOrder,
+}) => {
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const statusInfo = STATUS_CONFIG[order.status] || STATUS_CONFIG['בסידור עבודה'];
+  const StatusIcon = statusInfo.icon;
+
+  const isCrane = order.driver.includes('חכמת') || order.driver.includes('מנוף');
+  const isExempt = order.depositsSummary === 'פטור';
+
+  // Driver phone lookup
+  const driverPhone = isCrane ? '0520000005' : '0520000006';
+  const driverShortName = isCrane ? 'חכמת' : 'עלי';
+
+  // WhatsApp Message Generator
+  const generateWhatsAppLink = () => {
+    const message = `🚚 *ח. סבן — כרטיס משימה להזמנה #${order.orderNumber}*\n` +
+      `👤 לקוח: ${order.clientName}\n` +
+      `📍 יעד: ${order.destinationAddress}\n` +
+      `🏢 מחסן מקור: ${order.warehouse}\n` +
+      `📦 פריטים לפריקה: ${order.productsSummary}\n` +
+      `🛡️ פקדונות: ${order.depositsSummary}\n` +
+      `🗺️ ניווט Waze:\n${order.wazeUrl}\n\n` +
+      `נא לאשר תחילת נסיעה וסיום פריקה. יום מוצלח! 👍`;
+
+    return `https://api.whatsapp.com/send?phone=972${driverPhone.slice(1)}&text=${encodeURIComponent(message)}`;
+  };
+
+  return (
+    <div className="win-card win-card-hover rounded-2xl p-4.5 flex flex-col justify-between transition relative text-right">
+      {/* Top Bar: Round Badge + Order Number + Status Tag */}
+      <div>
+        <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-bold border border-slate-200/80">
+              {order.roundAndTime}
+            </span>
+            <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+              #{order.orderNumber}
+            </span>
+          </div>
+
+          {/* Status Dropdown Trigger */}
+          <div className="relative">
+            <button
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border transition ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}
+            >
+              <StatusIcon className="w-3.5 h-3.5" />
+              <span>{statusInfo.label}</span>
+            </button>
+
+            {showStatusMenu && (
+              <div className="absolute left-0 mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-30 animate-fade-in text-xs">
+                {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => {
+                      onUpdateStatus(order.id, st);
+                      setShowStatusMenu(false);
+                    }}
+                    className={`w-full text-right px-3 py-1.5 hover:bg-slate-50 transition flex items-center justify-between ${
+                      order.status === st ? 'font-bold text-blue-600 bg-blue-50/50' : 'text-slate-700'
+                    }`}
+                  >
+                    <span>{STATUS_CONFIG[st].label}</span>
+                    {order.status === st && <CheckCircle2 className="w-3 h-3 text-blue-600" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Client & Destination */}
+        <div className="mt-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-extrabold text-slate-900 truncate">
+              {order.clientName}
+            </h3>
+            {order.clientPhone && (
+              <a
+                href={`tel:${order.clientPhone}`}
+                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-semibold"
+                title="חייג ללקוח"
+              >
+                <Phone className="w-3 h-3" />
+                <span className="hidden sm:inline">{order.clientPhone}</span>
+              </a>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-1.5">
+            <MapPin className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+            <span className="truncate font-medium">{order.destinationAddress}</span>
+          </div>
+        </div>
+
+        {/* Drivers & Warehouse badges */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {/* Driver Badge */}
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              isCrane ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-blue-50 text-blue-900 border border-blue-200'
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5" />
+            <span>{order.driver}</span>
+          </span>
+
+          {/* Warehouse Badge */}
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+            <Building2 className="w-3.5 h-3.5 text-slate-500" />
+            <span>{order.warehouse}</span>
+          </span>
+        </div>
+
+        {/* Products Summary */}
+        <div className="mt-3 p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 text-xs">
+          <p className="text-slate-500 text-[10px] font-bold mb-1">פירוט מוצרים וכמויות:</p>
+          <p className="font-semibold text-slate-800 leading-relaxed">{order.productsSummary}</p>
+        </div>
+
+        {/* Deposits Badge */}
+        <div className="mt-2.5 flex items-center justify-between text-xs">
+          <span className="text-slate-500 text-[11px] font-semibold">פקדונות:</span>
+          <span
+            className={`px-2 py-0.5 rounded-md font-bold text-xs ${
+              isExempt ? 'bg-slate-100 text-slate-600' : 'bg-teal-50 text-teal-800 border border-teal-200'
+            }`}
+          >
+            {order.depositsSummary}
+          </span>
+        </div>
+
+        {order.notes && (
+          <p className="mt-2 text-[11px] text-amber-700 bg-amber-50/70 px-2 py-1 rounded border border-amber-200/50">
+            💡 {order.notes}
+          </p>
+        )}
+      </div>
+
+      {/* Card Footer: Waze + WhatsApp Direct Dispatch + Menu */}
+      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {/* Direct Waze Button */}
+          <a
+            href={order.wazeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold border border-sky-200 transition"
+            title="פתח ניווט בוויז ישירות לכתובת היעד"
+          >
+            <Navigation className="w-3.5 h-3.5 text-sky-600" />
+            <span>Waze</span>
+          </a>
+
+          {/* WhatsApp Direct Broadcast to Driver */}
+          <a
+            href={generateWhatsAppLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-sm shadow-emerald-500/20 transition active:scale-95"
+            title={`שדר כרטיס משימה ישירות לוואטסאפ של ${driverShortName}`}
+          >
+            <Send className="w-3 h-3" />
+            <span>שדר ל{driverShortName}</span>
+          </a>
+        </div>
+
+        {/* Manage buttons */}
+        <div className="flex items-center gap-1">
+          {onEditOrder && (
+            <button
+              onClick={() => onEditOrder(order)}
+              className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition"
+              title="ערוך פרטי הזמנה"
+            >
+              <Edit className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              if (confirm(`האם למחוק את הזמנה #${order.orderNumber} של ${order.clientName}?`)) {
+                onDeleteOrder(order.id);
+              }
+            }}
+            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
+            title="מחק הזמנה"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

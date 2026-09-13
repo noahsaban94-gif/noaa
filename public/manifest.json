@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "נועה AI — ניהול לוגיסטיקה ח. סבן",
+  "short_name": "נועה AI",
+  "description": "מערכת הפעלה לוגיסטית וסידור עבודה יומי ח. סבן חומרי בניין (1994) בע\"מ",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0284c7",
+  "background_color": "#f8fafc",
+  "dir": "rtl",
+  "lang": "he",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
