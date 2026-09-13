@@ -20,6 +20,7 @@ interface NewOrderModalProps {
   onClose: () => void;
   onSaveOrder: (newOrder: Partial<Order>) => void;
   preselectedClient?: Client | null;
+  initialDate?: string;
 }
 
 export const NewOrderModal: React.FC<NewOrderModalProps> = ({
@@ -27,10 +28,12 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
   onClose,
   onSaveOrder,
   preselectedClient,
+  initialDate,
 }) => {
   const [clientName, setClientName] = useState(preselectedClient?.name || '');
   const [clientPhone, setClientPhone] = useState(preselectedClient?.phone || '');
   const [destinationAddress, setDestinationAddress] = useState('');
+  const [targetDate, setTargetDate] = useState(initialDate || '2026-09-13');
   const [roundAndTime, setRoundAndTime] = useState('סבב 1 (07:30)');
   const [rawOrderText, setRawOrderText] = useState('');
   const [productsSummary, setProductsSummary] = useState('');
@@ -39,6 +42,11 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
   const [depositsSummary, setDepositsSummary] = useState('פטור');
   const [notes, setNotes] = useState('');
   const [isNormalized, setIsNormalized] = useState(false);
+
+  // Update targetDate if initialDate changes
+  React.useEffect(() => {
+    if (initialDate) setTargetDate(initialDate);
+  }, [initialDate]);
 
   if (!isOpen) return null;
 
@@ -81,6 +89,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
       clientName,
       clientPhone,
       destinationAddress: destinationAddress || 'הוד השרון',
+      date: targetDate,
       roundAndTime,
       warehouse,
       driver,
@@ -228,14 +237,28 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            {/* Delivery Date */}
+            <div>
+              <label className="block font-bold text-slate-700 mb-1 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                <span>תאריך אספקה:</span>
+              </label>
+              <input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+
             {/* Round & Time */}
             <div>
               <label className="block font-bold text-slate-700 mb-1">סבב ושעה:</label>
               <select
                 value={roundAndTime}
                 onChange={(e) => setRoundAndTime(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs"
               >
                 <option value="סבב 1 (07:30)">סבב 1 (07:30)</option>
                 <option value="סבב 2 (10:30)">סבב 2 (10:30)</option>
@@ -250,7 +273,7 @@ export const NewOrderModal: React.FC<NewOrderModalProps> = ({
               <select
                 value={warehouse}
                 onChange={(e) => setWarehouse(e.target.value as any)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs"
               >
                 <option value="🏭 4️⃣ (החרש)">🏭 4️⃣ (החרש) - מלט/בלות</option>
                 <option value="🏟️ 1️⃣ (התלמיד)">🏟️ 1️⃣ (התלמיד) - גבס/בידוד</option>

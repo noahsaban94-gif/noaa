@@ -35,6 +35,7 @@ export interface Order {
   status: OrderStatus;
   whatsappMessage?: string;
   createdAt: string;
+  date?: string; // YYYY-MM-DD תאריך אספקה בסידור
   notes?: string;
   items?: OrderItem[];
   driveFolderUrl?: string;

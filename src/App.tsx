@@ -14,6 +14,8 @@ import { SettingsView } from './components/SettingsView';
 import { NewOrderModal } from './components/NewOrderModal';
 import { MorningReportModal } from './components/MorningReportModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { NotificationToast } from './components/NotificationToast';
+import { triggerReadyForLoadingNotification } from './lib/notificationService';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -24,6 +26,7 @@ export default function App() {
 
   // Modals state
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
+  const [newOrderDefaultDate, setNewOrderDefaultDate] = useState<string | undefined>(undefined);
   const [isMorningReportOpen, setIsMorningReportOpen] = useState(false);
   const [preselectedClient, setPreselectedClient] = useState<Client | null>(null);
 
@@ -65,11 +68,23 @@ export default function App() {
 
   // Update order status (with backend sync and offline persistence)
   const handleUpdateStatus = useCallback(async (id: string, newStatus: OrderStatus) => {
+    let orderToNotify: Order | undefined;
+
     setOrders((prev) => {
+      const existing = prev.find((o) => o.id === id);
+      if (existing && existing.status !== newStatus && newStatus === 'מוכן להעמסה') {
+        orderToNotify = { ...existing, status: newStatus };
+      }
+
       const updated = prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o));
       saveCachedOrders(updated);
       return updated;
     });
+
+    // Trigger local Browser Notification & Audio Chime if status changed to 'מוכן להעמסה'
+    if (orderToNotify) {
+      triggerReadyForLoadingNotification(orderToNotify);
+    }
 
     try {
       await fetch(`/api/sheet/orders/${id}`, {
@@ -136,6 +151,7 @@ export default function App() {
       depositsSummary: newOrderData.depositsSummary || 'פטור',
       wazeUrl: newOrderData.wazeUrl || `https://www.waze.com/ul?q=${encodeURIComponent(newOrderData.destinationAddress || 'רעננה')}&navigate=yes`,
       status: 'בסידור עבודה',
+      date: newOrderData.date || newOrderDefaultDate || '2026-09-13',
       createdAt: new Date().toISOString(),
       notes: newOrderData.notes || '',
     };
@@ -198,6 +214,8 @@ export default function App() {
           onSyncSheet={handleSyncSheet}
           isSyncing={isSyncing}
           onOpenChat={() => setActiveTab('chat')}
+          onOpenSettings={() => setActiveTab('settings')}
+          onSelectOrder={() => setActiveTab('schedule')}
         />
 
         {/* Scrollable View Container */}
@@ -222,8 +240,9 @@ export default function App() {
               orders={orders}
               onUpdateStatus={handleUpdateStatus}
               onDeleteOrder={handleDeleteOrder}
-              onOpenNewOrder={() => {
+              onOpenNewOrder={(date?: string) => {
                 setPreselectedClient(null);
+                setNewOrderDefaultDate(date);
                 setIsNewOrderOpen(true);
               }}
               onOpenMorningReport={() => setIsMorningReportOpen(true)}
@@ -274,9 +293,11 @@ export default function App() {
         onClose={() => {
           setIsNewOrderOpen(false);
           setPreselectedClient(null);
+          setNewOrderDefaultDate(undefined);
         }}
         onSaveOrder={handleSaveNewOrder}
         preselectedClient={preselectedClient}
+        initialDate={newOrderDefaultDate}
       />
 
       {/* Morning Report Operational Modal */}
@@ -285,6 +306,9 @@ export default function App() {
         onClose={() => setIsMorningReportOpen(false)}
         orders={orders}
       />
+
+      {/* Real-time Order Ready Notification Toast */}
+      <NotificationToast onSelectOrder={() => setActiveTab('schedule')} />
 
       {/* Offline Status Toast Indicator */}
       <OfflineIndicator />

@@ -15,6 +15,7 @@ import {
 import { Order, Driver, ActiveTab } from '../types';
 import { MetricsGrid } from './MetricsGrid';
 import { OrderCard } from './OrderCard';
+import { WeeklyOrdersAnalyticsChart } from './WeeklyOrdersAnalyticsChart';
 import { NOA_AVATAR_IMAGE } from '../data/mockAndInitialData';
 
 interface DashboardViewProps {
@@ -88,6 +89,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* 4 Windows 11 Metrics Cards */}
       <MetricsGrid orders={orders} drivers={drivers} />
+
+      {/* Weekly Orders Analytics Chart (Recharts) */}
+      <WeeklyOrdersAnalyticsChart orders={orders} />
 
       {/* Active Orders Section */}
       <div className="space-y-3">

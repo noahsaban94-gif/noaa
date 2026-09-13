@@ -8,6 +8,7 @@ import {
   Send,
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
+import { NotificationBell } from './NotificationBell';
 
 interface NavbarProps {
   searchQuery: string;
@@ -17,6 +18,8 @@ interface NavbarProps {
   onSyncSheet: () => void;
   isSyncing: boolean;
   onOpenChat: () => void;
+  onOpenSettings?: () => void;
+  onSelectOrder?: (orderId: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -27,6 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSyncSheet,
   isSyncing,
   onOpenChat,
+  onOpenSettings,
+  onSelectOrder,
 }) => {
   return (
     <header className="h-16 win-mica border-b border-slate-200/80 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10">
@@ -44,6 +49,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Action Buttons & Status */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Local Browser Notification Bell */}
+        <NotificationBell
+          onOpenSettings={onOpenSettings}
+          onSelectOrder={onSelectOrder}
+        />
+
         {/* Google Sheet Sync Status */}
         <button
           onClick={onSyncSheet}
